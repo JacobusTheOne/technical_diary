@@ -1,17 +1,11 @@
 ---
-import { eq } from 'drizzle-orm';
 import { marked } from 'marked';
 import BlogPost from '../../layouts/BlogPost.astro';
-import { getDb } from '../../lib/db';
-import { posts as postsTable } from '../../lib/schema';
+import { findPostBySlug } from '../../lib/posts';
 
 const { slug } = Astro.params;
-const db = getDb();
 
-const row =
-	db && slug
-		? (await db.select().from(postsTable).where(eq(postsTable.slug, slug)).limit(1))[0]
-		: undefined;
+const row = slug ? await findPostBySlug(slug) : undefined;
 
 if (!row) return new Response('Not found', { status: 404 });
 

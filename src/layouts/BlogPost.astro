@@ -5,6 +5,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import { localeFor, t } from '../lib/i18n';
 
 interface Props {
 	title: string;
@@ -15,9 +16,11 @@ interface Props {
 }
 
 const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+const lang = Astro.locals.lang;
+const strings = t(lang);
 ---
 
-<html lang="en">
+<html lang={localeFor(lang)}>
 	<head>
 		<BaseHead title={title} description={description} />
 		<style>
@@ -75,7 +78,7 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 							{
 								updatedDate && (
 									<div class="last-updated-on">
-										Last updated on <FormattedDate date={updatedDate} />
+										{strings.lastUpdated} <FormattedDate date={updatedDate} />
 									</div>
 								)
 							}

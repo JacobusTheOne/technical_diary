@@ -2,36 +2,39 @@
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
+import { localeFor, t } from '../lib/i18n';
 
 // Already logged in? Send them straight to the new-post form.
 if (Astro.locals.user) return Astro.redirect('/admin/new');
 
+const lang = Astro.locals.lang;
+const strings = t(lang);
 const params = Astro.url.searchParams;
 const redirect = params.get('redirect') ?? '/admin/new';
 const hasError = params.get('error') === '1';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={localeFor(lang)}>
 	<head>
-		<BaseHead title="Log in" description="Sign in to write a diary entry." />
+		<BaseHead title={strings.login} description="Sign in to write a diary entry." />
 	</head>
 	<body>
 		<Header />
 		<main>
-			<h1>Log in</h1>
-			{hasError && <p class="error">Incorrect username or password.</p>}
+			<h1>{strings.login}</h1>
+			{hasError && <p class="error">{strings.loginError}</p>}
 			<form method="POST" action="/api/login">
 				<input type="hidden" name="redirect" value={redirect} />
 				<label>
-					Username
+					{strings.fieldUsername}
 					<input type="text" name="username" autocomplete="username" required autofocus />
 				</label>
 				<label>
-					Password
+					{strings.fieldPassword}
 					<input type="password" name="password" autocomplete="current-password" required />
 				</label>
-				<button type="submit">Log in</button>
+				<button type="submit">{strings.login}</button>
 			</form>
 		</main>
 		<Footer />

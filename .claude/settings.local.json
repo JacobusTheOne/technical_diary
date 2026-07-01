@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx astro check 2>&1)",
+      "PowerShell(npx astro check)",
+      "PowerShell(npx astro build)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

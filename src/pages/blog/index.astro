@@ -4,14 +4,17 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { localeFor, t } from '../../lib/i18n';
 import { listPosts } from '../../lib/posts';
 
 const posts = await listPosts();
 const isAdmin = !!Astro.locals.user;
+const lang = Astro.locals.lang;
+const strings = t(lang);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={localeFor(lang)}>
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 	</head>
@@ -19,17 +22,11 @@ const isAdmin = !!Astro.locals.user;
 		<Header />
 		<main>
 			<div class="bar">
-				<h1>Diary</h1>
-				{
-					isAdmin ? (
-						<a class="new-btn" href="/admin/new">+ New entry</a>
-					) : (
-						<a class="new-btn" href="/login">+ New entry</a>
-					)
-				}
+				<h1>{strings.diaryHeading}</h1>
+				<a class="new-btn" href={isAdmin ? '/admin/new' : '/login'}>{strings.newEntry}</a>
 			</div>
 
-			{posts.length === 0 && <p class="notice">No entries yet. Log in to write the first one.</p>}
+			{posts.length === 0 && <p class="notice">{strings.noEntries}</p>}
 
 			<ul>
 				{

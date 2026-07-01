@@ -1,0 +1,472 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import Footer from '../../../components/Footer.astro';
+import Header from '../../../components/Header.astro';
+import { localeFor, t } from '../../../lib/i18n';
+import { listTodos } from '../../../lib/todos';
+
+// Middleware already guarantees a logged-in user here.
+const lang = Astro.locals.lang;
+const strings = t(lang);
+const locale = localeFor(lang);
+
+function isoDate(d: Date): string {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
+function addDays(d: Date, n: number): Date {
+	const x = new Date(d);
+	x.setDate(x.getDate() + n);
+	x.setHours(0, 0, 0, 0);
+	return x;
+}
+
+function mondayOf(d: Date): Date {
+	const x = new Date(d);
+	x.setHours(0, 0, 0, 0);
+	// getDay(): 0=Sun..6=Sat; shift so Monday is the start of the week.
+	const offset = (x.getDay() + 6) % 7;
+	return addDays(x, -offset);
+}
+
+// Which week to show: ?week=YYYY-MM-DD anchors it; otherwise the current week.
+const weekParam = Astro.url.searchParams.get('week');
+const anchor =
+	weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)
+		? new Date(`${weekParam}T00:00:00`)
+		: new Date();
+const monday = mondayOf(anchor);
+const todayIso = isoDate(new Date());
+
+const days = Array.from({ length: 7 }, (_, i) => {
+	const date = addDays(monday, i);
+	const iso = isoDate(date);
+	return {
+		iso,
+		isToday: iso === todayIso,
+		label: date.toLocaleDateString(locale, { weekday: 'short' }),
+		sub: date.toLocaleDateString(locale, { day: 'numeric', month: 'short' }),
+	};
+});
+
+const prevWeek = isoDate(addDays(monday, -7));
+const nextWeek = isoDate(addDays(monday, 7));
+const thisWeek = isoDate(mondayOf(new Date()));
+
+// Flatten every step across todos into draggable chips.
+const todos = await listTodos();
+interface Chip {
+	todoId: number;
+	todoTitle: string;
+	todoGoal: string;
+	stepIndex: number;
+	subIndex: number | null;
+	parentText: string | null;
+	text: string;
+	done: boolean;
+	date: string | null;
+}
+
+interface ChipGroup {
+	todoId: number;
+	todoTitle: string;
+	todoGoal: string;
+	chips: Chip[];
+}
+
+const chips: Chip[] = [];
+for (const todo of todos) {
+	todo.steps.forEach((step, stepIndex) => {
+		const subs = step.subtasks ?? [];
+		if (subs.length > 0) {
+			// A step with sub-tasks contributes one draggable chip per sub-task.
+			subs.forEach((sub, subIndex) => {
+				chips.push({
+					todoId: todo.id,
+					todoTitle: todo.title,
+					todoGoal: todo.goal,
+					stepIndex,
+					subIndex,
+					parentText: step.text,
+					text: sub.text,
+					done: sub.done,
+					date: sub.scheduledDate ?? null,
+				});
+			});
+		} else {
+			chips.push({
+				todoId: todo.id,
+				todoTitle: todo.title,
+				todoGoal: todo.goal,
+				stepIndex,
+				subIndex: null,
+				parentText: null,
+				text: step.text,
+				done: step.done,
+				date: step.scheduledDate ?? null,
+			});
+		}
+	});
+}
+
+function groupChips(items: Chip[]): ChipGroup[] {
+	const groups = new Map<number, ChipGroup>();
+	for (const chip of items) {
+		const group =
+			groups.get(chip.todoId) ??
+			{
+				todoId: chip.todoId,
+				todoTitle: chip.todoTitle,
+				todoGoal: chip.todoGoal,
+				chips: [],
+			};
+		group.chips.push(chip);
+		groups.set(chip.todoId, group);
+	}
+	return Array.from(groups.values());
+}
+
+// Unscheduled = no date. Chips dated in other weeks are hidden on this view.
+const unscheduledGroups = groupChips(chips.filter((c) => !c.date));
+const groupsByDay = (iso: string) => groupChips(chips.filter((c) => c.date === iso));
+const hasAnySteps = chips.length > 0;
+---
+
+<!doctype html>
+<html lang={locale}>
+	<head>
+		<BaseHead title={strings.weekView} description="Plan todo steps across the week." />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="bar">
+				<h1>{strings.todosHeading}</h1>
+				<a class="switch" href="/admin/todos">{strings.listView}</a>
+			</div>
+
+			<div class="weeknav">
+				<a class="nav-btn" href={`/admin/todos/week?week=${prevWeek}`}>{strings.prevWeek}</a>
+				<a class="nav-btn" href={`/admin/todos/week?week=${thisWeek}`}>{strings.thisWeek}</a>
+				<a class="nav-btn" href={`/admin/todos/week?week=${nextWeek}`}>{strings.nextWeek}</a>
+			</div>
+
+			<p class="hint">{strings.dragHint}</p>
+			{!hasAnySteps && <p class="notice">{strings.noSteps}</p>}
+
+			<div class="board">
+				<div class="col unscheduled">
+					<div class="col-head">{strings.unscheduled}</div>
+					<div class="dropzone" data-date="">
+						<div class="groups">
+							{unscheduledGroups.map((group) => (
+								<details class="todo-group">
+									<summary class="todo-summary">
+										<h3>{group.todoTitle}</h3>
+										{group.todoGoal && (
+											<p class="goal">
+												<strong>{strings.fieldGoal}:</strong> {group.todoGoal}
+											</p>
+										)}
+									</summary>
+									<div class="chips">
+										{group.chips.map((c) => (
+											<div
+												class:list={['chip', { done: c.done }]}
+												draggable="true"
+												data-todo-id={c.todoId}
+												data-step-index={c.stepIndex}
+												data-sub-index={c.subIndex ?? ''}
+											>
+												<span class="box">{c.done ? '[x]' : '[ ]'}</span>
+												<span class="chip-text">{c.text}</span>
+												{c.parentText && <span class="chip-todo">{c.parentText}</span>}
+											</div>
+										))}
+									</div>
+								</details>
+							))}
+						</div>
+					</div>
+				</div>
+
+				{days.map((day) => (
+					<div class:list={['col', { today: day.isToday }]}>
+						<div class="col-head">
+							<span class="day-name">{day.label}</span>
+							<span class="day-sub">{day.sub}</span>
+						</div>
+						<div class="dropzone" data-date={day.iso}>
+							<div class="groups">
+								{groupsByDay(day.iso).map((group) => (
+									<details class="todo-group">
+										<summary class="todo-summary">
+											<h3>{group.todoTitle}</h3>
+											{group.todoGoal && (
+												<p class="goal">
+													<strong>{strings.fieldGoal}:</strong> {group.todoGoal}
+												</p>
+											)}
+										</summary>
+										<div class="chips">
+											{group.chips.map((c) => (
+												<div
+													class:list={['chip', { done: c.done }]}
+													draggable="true"
+													data-todo-id={c.todoId}
+													data-step-index={c.stepIndex}
+													data-sub-index={c.subIndex ?? ''}
+												>
+													<span class="box">{c.done ? '[x]' : '[ ]'}</span>
+													<span class="chip-text">{c.text}</span>
+													{c.parentText && <span class="chip-todo">{c.parentText}</span>}
+												</div>
+											))}
+										</div>
+									</details>
+								))}
+							</div>
+						</div>
+					</div>
+				))}
+			</div>
+		</main>
+		<Footer />
+		<script is:inline>
+			(() => {
+				let dragged = null;
+
+				document.addEventListener('dragstart', (e) => {
+					const chip = e.target.closest('.chip');
+					if (!chip) return;
+					dragged = chip;
+					e.dataTransfer.effectAllowed = 'move';
+					// Firefox requires data to be set for a drag to start.
+					e.dataTransfer.setData('text/plain', chip.dataset.todoId);
+					requestAnimationFrame(() => chip.classList.add('dragging'));
+				});
+
+				document.addEventListener('dragend', () => {
+					dragged?.classList.remove('dragging');
+					dragged = null;
+				});
+
+				document.querySelectorAll('.dropzone').forEach((zone) => {
+					zone.addEventListener('dragover', (e) => {
+						e.preventDefault();
+						zone.classList.add('over');
+					});
+					zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+					zone.addEventListener('drop', async (e) => {
+						e.preventDefault();
+						zone.classList.remove('over');
+						if (!dragged) return;
+
+						const todoId = dragged.dataset.todoId;
+						const stepIndex = dragged.dataset.stepIndex;
+						const subIndex = dragged.dataset.subIndex || '';
+						const date = zone.dataset.date || '';
+
+						try {
+							const res = await fetch(`/api/todos/${todoId}`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+								body: new URLSearchParams({ _action: 'schedule-step', stepIndex, subIndex, date }),
+							});
+							if (!res.ok) throw new Error(String(res.status));
+							location.reload();
+						} catch {
+							// Reload to resync if the save failed.
+							location.reload();
+						}
+					});
+				});
+			})();
+		</script>
+		<style>
+			main {
+				width: 100%;
+				max-width: 1100px;
+			}
+			.bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+			}
+			.switch {
+				flex: none;
+				padding: 0.5rem 1rem;
+				font-size: 0.95rem;
+				font-weight: 700;
+				color: var(--accent);
+				border: 1px solid var(--accent);
+				border-radius: 8px;
+				text-decoration: none;
+			}
+			.switch:hover {
+				color: white;
+				background: var(--accent);
+			}
+			.weeknav {
+				display: flex;
+				gap: 0.5rem;
+				margin: 0.5rem 0;
+			}
+			.nav-btn {
+				padding: 0.35rem 0.75rem;
+				font-size: 0.85rem;
+				font-weight: 700;
+				color: rgb(var(--gray-dark));
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				text-decoration: none;
+			}
+			.nav-btn:hover {
+				border-color: var(--accent);
+				color: var(--accent);
+			}
+			.hint {
+				color: rgb(var(--gray));
+				font-size: 0.9rem;
+			}
+			.notice {
+				color: rgb(var(--gray));
+			}
+			.board {
+				display: grid;
+				grid-auto-flow: column;
+				grid-auto-columns: minmax(180px, 1fr);
+				gap: 0.6rem;
+				overflow-x: auto;
+				padding-bottom: 0.5rem;
+			}
+			.col {
+				display: flex;
+				flex-direction: column;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 10px;
+				background: rgb(var(--gray-light), 0.25);
+			}
+			.col.unscheduled {
+				background: none;
+			}
+			.col.today {
+				border-color: var(--accent);
+			}
+			.col-head {
+				display: flex;
+				flex-direction: column;
+				gap: 0.1rem;
+				padding: 0.5rem 0.6rem;
+				font-weight: 700;
+				font-size: 0.85rem;
+				border-bottom: 1px solid rgb(var(--gray-light));
+			}
+			.day-sub {
+				font-weight: 400;
+				font-size: 0.75rem;
+				color: rgb(var(--gray));
+			}
+			.dropzone {
+				flex: 1;
+				min-height: 120px;
+				padding: 0.4rem;
+			}
+			.dropzone.over {
+				background: rgb(var(--gray-light), 0.6);
+				outline: 2px dashed var(--accent);
+				outline-offset: -4px;
+				border-radius: 8px;
+			}
+			.groups {
+				display: flex;
+				flex-direction: column;
+				gap: 0.45rem;
+				min-height: 100%;
+			}
+			.todo-group {
+				background: white;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				box-shadow: 0 1px 2px rgba(var(--black), 6%);
+			}
+			.todo-summary {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				column-gap: 0.45rem;
+				padding: 0.45rem 0.55rem;
+				cursor: pointer;
+			}
+			.todo-summary::-webkit-details-marker {
+				display: none;
+			}
+			.todo-summary::before {
+				content: '>';
+				grid-column: 1;
+				grid-row: 1 / span 2;
+				font-weight: 700;
+				color: var(--accent);
+				transition: transform 0.15s ease;
+			}
+			.todo-group[open] > .todo-summary::before {
+				transform: rotate(90deg);
+			}
+			.todo-summary > * {
+				grid-column: 2;
+			}
+			.todo-summary h3 {
+				margin: 0;
+				font-size: 0.85rem;
+				line-height: 1.25;
+			}
+			.todo-summary:hover h3 {
+				color: var(--accent);
+			}
+			.goal {
+				margin: 0.25rem 0 0;
+				font-size: 0.72rem;
+				line-height: 1.35;
+				color: rgb(var(--gray-dark));
+			}
+			.chips {
+				display: flex;
+				flex-direction: column;
+				gap: 0.35rem;
+				padding: 0 0.45rem 0.45rem;
+			}
+			.chip {
+				display: flex;
+				flex-direction: column;
+				gap: 0.15rem;
+				padding: 0.35rem 0.45rem;
+				background: rgb(var(--gray-light), 0.2);
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 7px;
+				cursor: grab;
+				font-size: 0.82rem;
+			}
+			.chip:active {
+				cursor: grabbing;
+			}
+			.chip.dragging {
+				opacity: 0.4;
+			}
+			.chip .box {
+				color: var(--accent);
+				font-weight: 700;
+			}
+			.chip.done .chip-text {
+				color: rgb(var(--gray));
+				text-decoration: line-through;
+			}
+			.chip-todo {
+				font-size: 0.7rem;
+				color: rgb(var(--gray));
+			}
+		</style>
+	</body>
+</html>

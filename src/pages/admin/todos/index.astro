@@ -1,0 +1,419 @@
+---
+import BaseHead from '../../../components/BaseHead.astro';
+import Footer from '../../../components/Footer.astro';
+import Header from '../../../components/Header.astro';
+import { localeFor, t } from '../../../lib/i18n';
+import { listTodos } from '../../../lib/todos';
+
+// Middleware already guarantees a logged-in user here.
+const lang = Astro.locals.lang;
+const strings = t(lang);
+
+const todos = await listTodos();
+const open = todos.filter((todo) => !todo.done);
+const completed = todos.filter((todo) => todo.done);
+const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0), 0);
+---
+
+<!doctype html>
+<html lang={localeFor(lang)}>
+	<head>
+		<BaseHead title={strings.todosHeading} description="Personal todo list." />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="bar">
+				<h1>{strings.todosHeading}</h1>
+				<div class="bar-actions">
+					<a class="switch" href="/admin/todos/week">{strings.weekView}</a>
+					<a class="new-btn" href="/admin/todos/new">{strings.newTodo}</a>
+				</div>
+			</div>
+
+			{
+				openHours > 0 && (
+					<p class="estimate">
+						{strings.openEstimate}: {openHours}
+						{strings.hoursSuffix}
+					</p>
+				)
+			}
+
+			{todos.length === 0 && <p class="notice">{strings.noTodos}</p>}
+
+			{
+				open.length > 0 && (
+					<section>
+						<h2>{strings.openSection}</h2>
+						{open.map((todo) => (
+							<details class="card">
+								<summary class="card-summary">
+								<div class="card-head">
+									<h3>{todo.title}</h3>
+									<div class="badges">
+										{todo.priority && <span class={`badge prio-${todo.priority}`}>{todo.priority}</span>}
+										{todo.timeEstimateHours !== null && (
+											<span class="badge est">
+												{strings.fieldEstimate}: {todo.timeEstimateHours}
+												{strings.hoursSuffix}
+											</span>
+										)}
+									</div>
+								</div>
+								{todo.goal && (
+									<p class="goal">
+										<strong>{strings.fieldGoal}:</strong> {todo.goal}
+									</p>
+								)}
+								</summary>
+								<div class="card-body">
+								{todo.ideas.length > 0 && (
+									<div class="block">
+										<span class="block-label">{strings.fieldIdeas}</span>
+										<ul>
+											{todo.ideas.map((idea) => (
+												<li>{idea}</li>
+											))}
+										</ul>
+									</div>
+								)}
+								{todo.steps.length > 0 && (
+									<div class="block">
+										<span class="block-label">{strings.fieldSteps}</span>
+										<ul class="steps">
+											{todo.steps.map((step, i) => {
+												const subs = step.subtasks ?? [];
+												const doneCount = subs.filter((s) => s.done).length;
+												return (
+													<li>
+														{subs.length > 0 ? (
+															<>
+																<div class:list={['step-parent', { done: step.done }]}>
+																	<span class="box">{step.done ? '✓' : '▢'}</span>
+																	<span class="parent-text">{step.text}</span>
+																	<span class="progress">
+																		{doneCount}/{subs.length}
+																	</span>
+																</div>
+																<ul class="subs">
+																	{subs.map((sub, j) => (
+																		<li>
+																			<form method="POST" action={`/api/todos/${todo.id}`}>
+																				<input type="hidden" name="_action" value="toggle-step" />
+																				<input type="hidden" name="stepIndex" value={i} />
+																				<input type="hidden" name="subIndex" value={j} />
+																				<button type="submit" class:list={['step-toggle', { done: sub.done }]}>
+																					<span class="box">{sub.done ? '✓' : '▢'}</span> {sub.text}
+																				</button>
+																			</form>
+																		</li>
+																	))}
+																</ul>
+															</>
+														) : (
+															<form method="POST" action={`/api/todos/${todo.id}`}>
+																<input type="hidden" name="_action" value="toggle-step" />
+																<input type="hidden" name="stepIndex" value={i} />
+																<button type="submit" class:list={['step-toggle', { done: step.done }]}>
+																	<span class="box">{step.done ? '✓' : '▢'}</span> {step.text}
+																</button>
+															</form>
+														)}
+													</li>
+												);
+											})}
+										</ul>
+									</div>
+								)}
+								{todo.notes && (
+									<p class="notes">
+										<strong>{strings.fieldNotes}:</strong> {todo.notes}
+									</p>
+								)}
+								<div class="actions">
+									<a class="action" href={`/admin/todos/edit/${todo.id}`}>{strings.edit}</a>
+									<form method="POST" action={`/api/todos/${todo.id}`}>
+										<input type="hidden" name="_action" value="toggle" />
+										<button type="submit" class="action">{strings.markDone}</button>
+									</form>
+									<form method="POST" action={`/api/todos/${todo.id}`}>
+										<input type="hidden" name="_action" value="delete" />
+										<button type="submit" class="action danger">{strings.deleteLabel}</button>
+									</form>
+								</div>
+								</div>
+							</details>
+						))}
+					</section>
+				)
+			}
+
+			{
+				completed.length > 0 && (
+					<section>
+						<h2>{strings.completedSection}</h2>
+						{completed.map((todo) => (
+							<article class="card done">
+								<div class="card-head">
+									<h3>{todo.title}</h3>
+								</div>
+								<div class="actions">
+									<a class="action" href={`/admin/todos/edit/${todo.id}`}>{strings.edit}</a>
+									<form method="POST" action={`/api/todos/${todo.id}`}>
+										<input type="hidden" name="_action" value="toggle" />
+										<button type="submit" class="action">{strings.reopen}</button>
+									</form>
+									<form method="POST" action={`/api/todos/${todo.id}`}>
+										<input type="hidden" name="_action" value="delete" />
+										<button type="submit" class="action danger">{strings.deleteLabel}</button>
+									</form>
+								</div>
+							</article>
+						))}
+					</section>
+				)
+			}
+		</main>
+		<Footer />
+		<style>
+			main {
+				width: 720px;
+			}
+			.bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+			}
+			.bar-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+			.switch {
+				flex: none;
+				padding: 0.5rem 1rem;
+				font-size: 0.95rem;
+				font-weight: 700;
+				color: var(--accent);
+				border: 1px solid var(--accent);
+				border-radius: 8px;
+				text-decoration: none;
+			}
+			.switch:hover {
+				color: white;
+				background: var(--accent);
+			}
+			.new-btn {
+				flex: none;
+				padding: 0.5rem 1rem;
+				font-size: 0.95rem;
+				font-weight: 700;
+				color: white;
+				background: var(--accent);
+				border-radius: 8px;
+				text-decoration: none;
+			}
+			.new-btn:hover {
+				background: var(--accent-dark);
+			}
+			.estimate {
+				font-weight: 700;
+				color: rgb(var(--gray-dark));
+			}
+			.notice {
+				color: rgb(var(--gray));
+			}
+			h2 {
+				margin: 2rem 0 0.75rem;
+				font-size: 1.1rem;
+				color: rgb(var(--gray-dark));
+			}
+			.card {
+				padding: 1rem 1.25rem;
+				margin-bottom: 1rem;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 12px;
+			}
+			.card.done {
+				opacity: 0.65;
+			}
+			.card.done h3 {
+				text-decoration: line-through;
+			}
+			.card-summary {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				column-gap: 0.6rem;
+				cursor: pointer;
+			}
+			.card-summary::-webkit-details-marker {
+				display: none;
+			}
+			.card-summary::before {
+				content: '>';
+				grid-column: 1;
+				grid-row: 1 / span 2;
+				font-weight: 700;
+				color: var(--accent);
+				transition: transform 0.15s ease;
+			}
+			.card[open] > .card-summary::before {
+				transform: rotate(90deg);
+			}
+			.card-summary > * {
+				grid-column: 2;
+			}
+			.card-summary:hover h3 {
+				color: var(--accent);
+			}
+			.card-body {
+				padding-top: 0.2rem;
+			}
+			.card-head {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: 1rem;
+				flex-wrap: wrap;
+			}
+			.card h3 {
+				margin: 0;
+				font-size: 1.25rem;
+			}
+			.badges {
+				display: flex;
+				gap: 0.4rem;
+				flex-wrap: wrap;
+			}
+			.badge {
+				padding: 0.15rem 0.5rem;
+				font-size: 0.75rem;
+				font-weight: 700;
+				border-radius: 999px;
+				background: rgb(var(--gray-light));
+				color: rgb(var(--gray-dark));
+				text-transform: capitalize;
+			}
+			.prio-high {
+				background: #fdecea;
+				color: #b00020;
+			}
+			.prio-medium {
+				background: #fff4e5;
+				color: #8a5300;
+			}
+			.prio-low {
+				background: #e8f5e9;
+				color: #1b5e20;
+			}
+			.goal {
+				margin: 0.6rem 0 0;
+			}
+			.block {
+				margin-top: 0.6rem;
+			}
+			.block-label {
+				font-size: 0.8rem;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.03em;
+				color: rgb(var(--gray));
+			}
+			.block ul {
+				margin: 0.25rem 0 0;
+				padding-left: 1.25rem;
+			}
+			.steps {
+				list-style: none;
+				padding-left: 0;
+			}
+			.steps form {
+				margin: 0;
+			}
+			.step-parent {
+				display: inline-flex;
+				align-items: baseline;
+				gap: 0.4rem;
+				padding: 0.15rem 0;
+				font-weight: 700;
+			}
+			.step-parent .box {
+				color: var(--accent);
+			}
+			.step-parent.done .parent-text {
+				color: rgb(var(--gray));
+				text-decoration: line-through;
+			}
+			.progress {
+				font-weight: 400;
+				font-size: 0.8rem;
+				color: rgb(var(--gray));
+			}
+			.subs {
+				list-style: none;
+				margin: 0 0 0.3rem;
+				padding-left: 1.4rem;
+			}
+			.step-toggle {
+				display: inline-flex;
+				align-items: baseline;
+				gap: 0.4rem;
+				padding: 0.15rem 0;
+				font: inherit;
+				text-align: left;
+				color: rgb(var(--black));
+				background: none;
+				border: none;
+				cursor: pointer;
+			}
+			.step-toggle .box {
+				color: var(--accent);
+			}
+			.step-toggle:hover {
+				color: var(--accent);
+			}
+			.step-toggle.done {
+				color: rgb(var(--gray));
+				text-decoration: line-through;
+			}
+			.notes {
+				margin: 0.6rem 0 0;
+				color: rgb(var(--gray-dark));
+			}
+			.actions {
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				margin-top: 1rem;
+			}
+			.actions form {
+				margin: 0;
+			}
+			.action {
+				padding: 0.35rem 0.75rem;
+				font-size: 0.85rem;
+				font-weight: 700;
+				color: var(--accent);
+				background: none;
+				border: 1px solid var(--accent);
+				border-radius: 8px;
+				text-decoration: none;
+				cursor: pointer;
+			}
+			.action:hover {
+				color: white;
+				background: var(--accent);
+			}
+			.action.danger {
+				color: #b00020;
+				border-color: #b00020;
+			}
+			.action.danger:hover {
+				color: white;
+				background: #b00020;
+			}
+		</style>
+	</body>
+</html>

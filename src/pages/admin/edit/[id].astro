@@ -1,13 +1,19 @@
 ---
-import BaseHead from '../../components/BaseHead.astro';
-import Footer from '../../components/Footer.astro';
-import Header from '../../components/Header.astro';
-import PostForm from '../../components/PostForm.astro';
-import { localeFor, t } from '../../lib/i18n';
+import BaseHead from '../../../components/BaseHead.astro';
+import Footer from '../../../components/Footer.astro';
+import Header from '../../../components/Header.astro';
+import PostForm from '../../../components/PostForm.astro';
+import { localeFor, t } from '../../../lib/i18n';
+import { findPostById } from '../../../lib/posts';
 
 // Middleware already guarantees a logged-in user here.
 const lang = Astro.locals.lang;
 const strings = t(lang);
+
+const id = Number(Astro.params.id);
+const post = Number.isInteger(id) ? await findPostById(id) : undefined;
+if (!post) return Astro.redirect('/blog', 302);
+
 const error = Astro.url.searchParams.get('error');
 const errorMessage =
 	error === 'missing' ? strings.errMissing : error === 'date' ? strings.errDate : null;
@@ -16,19 +22,19 @@ const errorMessage =
 <!doctype html>
 <html lang={localeFor(lang)}>
 	<head>
-		<BaseHead title={strings.newEntryHeading} description="Write a new diary entry." />
+		<BaseHead title={strings.editHeading} description="Edit a diary entry." />
 	</head>
 	<body>
 		<Header />
 		<main>
 			<div class="bar">
-				<h1>{strings.newEntryHeading}</h1>
+				<h1>{strings.editHeading}</h1>
 				<form method="POST" action="/api/logout" class="logout">
 					<button type="submit">{strings.logout}</button>
 				</form>
 			</div>
 			{errorMessage && <p class="error">{errorMessage}</p>}
-			<PostForm action="/api/posts" />
+			<PostForm action={`/api/posts/${post.id}`} post={post} />
 		</main>
 		<Footer />
 		<style>

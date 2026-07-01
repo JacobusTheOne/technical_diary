@@ -1,9 +1,12 @@
 ---
 import { marked } from 'marked';
 import BlogPost from '../../layouts/BlogPost.astro';
+import { t } from '../../lib/i18n';
 import { findPostBySlug } from '../../lib/posts';
 
 const { slug } = Astro.params;
+const strings = t(Astro.locals.lang);
+const isAdmin = !!Astro.locals.user;
 
 const row = slug ? await findPostBySlug(slug) : undefined;
 
@@ -14,5 +17,29 @@ const html = await marked.parse(row.body);
 ---
 
 <BlogPost title={row.title} pubDate={row.pubDate}>
+	{
+		isAdmin && (
+			<a class="edit-link" href={`/admin/edit/${row.id}`}>
+				{strings.edit}
+			</a>
+		)
+	}
 	<Fragment set:html={html} />
 </BlogPost>
+<style>
+	.edit-link {
+		display: inline-block;
+		margin-bottom: 1.5rem;
+		padding: 0.4rem 0.9rem;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--accent);
+		border: 1px solid var(--accent);
+		border-radius: 8px;
+		text-decoration: none;
+	}
+	.edit-link:hover {
+		color: white;
+		background: var(--accent);
+	}
+</style>

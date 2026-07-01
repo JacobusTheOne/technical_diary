@@ -1,0 +1,79 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+
+// Already logged in? Send them straight to the new-post form.
+if (Astro.locals.user) return Astro.redirect('/admin/new');
+
+const params = Astro.url.searchParams;
+const redirect = params.get('redirect') ?? '/admin/new';
+const hasError = params.get('error') === '1';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title="Log in" description="Sign in to write a diary entry." />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<h1>Log in</h1>
+			{hasError && <p class="error">Incorrect username or password.</p>}
+			<form method="POST" action="/api/login">
+				<input type="hidden" name="redirect" value={redirect} />
+				<label>
+					Username
+					<input type="text" name="username" autocomplete="username" required autofocus />
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" autocomplete="current-password" required />
+				</label>
+				<button type="submit">Log in</button>
+			</form>
+		</main>
+		<Footer />
+		<style>
+			main {
+				max-width: 32rem;
+			}
+			form {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+				margin-top: 1.5rem;
+			}
+			label {
+				display: flex;
+				flex-direction: column;
+				gap: 0.35rem;
+				font-weight: 700;
+			}
+			input {
+				padding: 0.6rem 0.75rem;
+				font-size: 1rem;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+			}
+			button {
+				padding: 0.7rem 1rem;
+				font-size: 1rem;
+				font-weight: 700;
+				color: white;
+				background: var(--accent);
+				border: none;
+				border-radius: 8px;
+				cursor: pointer;
+			}
+			button:hover {
+				background: var(--accent-dark);
+			}
+			.error {
+				color: #b00020;
+				font-weight: 700;
+			}
+		</style>
+	</body>
+</html>

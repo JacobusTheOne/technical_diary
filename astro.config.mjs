@@ -1,5 +1,6 @@
 // @ts-check
 
+import netlify from '@astrojs/netlify';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
@@ -8,6 +9,10 @@ import { defineConfig, fontProviders } from 'astro/config';
 export default defineConfig({
 	// TODO: replace with your Netlify URL once the site is connected (needed for correct RSS/sitemap links)
 	site: 'https://example.netlify.app',
+	// Server-rendered: the diary reads posts from the database at request time
+	// and the /admin routes need a live session.
+	output: 'server',
+	adapter: netlify(),
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{

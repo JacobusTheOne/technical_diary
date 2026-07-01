@@ -1,0 +1,114 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import Header from '../../components/Header.astro';
+
+// Middleware already guarantees a logged-in user here.
+const today = new Date().toISOString().slice(0, 10);
+const error = Astro.url.searchParams.get('error');
+const errorMessage =
+	error === 'missing'
+		? 'Title and body are both required.'
+		: error === 'date'
+			? 'That date is not valid.'
+			: null;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title="New entry" description="Write a new diary entry." />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="bar">
+				<h1>New entry</h1>
+				<form method="POST" action="/api/logout" class="logout">
+					<button type="submit">Log out</button>
+				</form>
+			</div>
+			{errorMessage && <p class="error">{errorMessage}</p>}
+			<form method="POST" action="/api/posts">
+				<label>
+					Title
+					<input type="text" name="title" required autofocus />
+				</label>
+				<label>
+					Date
+					<input type="date" name="pubDate" value={today} required />
+				</label>
+				<label>
+					Body <span class="hint">(Markdown supported)</span>
+					<textarea name="body" rows="16" required></textarea>
+				</label>
+				<button type="submit" class="publish">Publish</button>
+			</form>
+		</main>
+		<Footer />
+		<style>
+			.bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+			}
+			.logout button {
+				background: none;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				padding: 0.4rem 0.8rem;
+				color: rgb(var(--gray));
+				cursor: pointer;
+				font-size: 0.9rem;
+			}
+			form:not(.logout) {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+				margin-top: 1rem;
+			}
+			label {
+				display: flex;
+				flex-direction: column;
+				gap: 0.35rem;
+				font-weight: 700;
+			}
+			.hint {
+				font-weight: 400;
+				color: rgb(var(--gray));
+				font-size: 0.85rem;
+			}
+			input,
+			textarea {
+				padding: 0.6rem 0.75rem;
+				font-size: 1rem;
+				font-family: inherit;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+			}
+			textarea {
+				resize: vertical;
+				line-height: 1.5;
+			}
+			.publish {
+				align-self: flex-start;
+				padding: 0.7rem 1.4rem;
+				font-size: 1rem;
+				font-weight: 700;
+				color: white;
+				background: var(--accent);
+				border: none;
+				border-radius: 8px;
+				cursor: pointer;
+			}
+			.publish:hover {
+				background: var(--accent-dark);
+			}
+			.error {
+				color: #b00020;
+				font-weight: 700;
+			}
+		</style>
+	</body>
+</html>

@@ -1,63 +1,68 @@
-# Astro Starter Kit: Blog
+# Technical Diary
+
+A personal technical diary built with [Astro](https://astro.build) (server-rendered),
+[Netlify DB](https://docs.netlify.com/storage/netlify-db/) (Neon Postgres) via the
+[Drizzle ORM](https://orm.drizzle.team), and a single-admin login. Entries are written
+through a protected **New entry** form and stored in the database — no Markdown files to
+commit.
+
+## How posting works
+
+1. Go to **Diary** and click **+ New entry** (or visit `/login`).
+2. Log in with your admin username/password.
+3. Fill in title, date, and body (Markdown supported) and hit **Publish**.
+4. The entry is saved to the database and appears immediately at `/blog`.
+
+## Local development
 
 ```sh
-npm create astro@latest -- --template blog
+npm install
+cp .env.example .env   # then fill in the values (see below)
+npm run dev            # http://localhost:4321
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+You need a Postgres database for posts to load and save. Either point `.env` at a Neon
+database (`DATABASE_URL=...`) or run through the Netlify CLI with `netlify dev`, which
+injects `NETLIFY_DATABASE_URL` automatically once the site has a Netlify DB.
 
-Features:
+### Environment variables
 
-- ✅ Minimal styling (make it your own!)
-- ✅ 100/100 Lighthouse performance
-- ✅ SEO-friendly with canonical URLs and Open Graph data
-- ✅ Sitemap support
-- ✅ RSS Feed support
-- ✅ Markdown & MDX support
+| Variable | Purpose |
+| --- | --- |
+| `NETLIFY_DATABASE_URL` / `DATABASE_URL` | Postgres connection string |
+| `ADMIN_USERNAME` | The one account allowed to post |
+| `ADMIN_PASSWORD` | That account's password |
+| `SESSION_SECRET` | Random string used to sign the login cookie |
 
-## 🚀 Project Structure
+### Database schema
 
-Inside of your Astro project, you'll see the following folders and files:
+The schema lives in [`src/lib/schema.ts`](src/lib/schema.ts). After changing it (or on
+first setup) push it to the database:
 
-```text
-├── public/
-├── src/
-│   ├── assets/
-│   ├── components/
-│   ├── content/
-│   ├── layouts/
-│   └── pages/
-├── astro.config.mjs
-├── README.md
-├── package.json
-└── tsconfig.json
+```sh
+npm run db:push       # apply the schema to the database
+npm run db:studio     # optional: browse data in Drizzle Studio
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Deploying to Netlify
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+1. Push this repo to GitHub.
+2. In Netlify: **Add new site → Import an existing project → GitHub → pick the repo.**
+   The `@astrojs/netlify` adapter and `netlify.toml` are already configured.
+3. Provision the database: install the Netlify CLI (`npm i -g netlify-cli`), run
+   `netlify link`, then `netlify db init`. This creates a Neon database and sets
+   `NETLIFY_DATABASE_URL` on the site.
+4. Add the other env vars in **Site settings → Environment variables**:
+   `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`.
+5. Apply the schema against the production database once: with the production
+   `NETLIFY_DATABASE_URL` in your local `.env`, run `npm run db:push`.
+6. Deploy. Every future `git push` redeploys automatically.
 
-The `src/content/` directory contains "collections" of related Markdown and MDX documents. Use `getCollection()` to retrieve posts from `src/content/blog/`, and type-check your frontmatter using an optional schema. See [Astro's Content Collections docs](https://docs.astro.build/en/guides/content-collections/) to learn more.
+## Project layout
 
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
-
-## Credit
-
-This theme is based off of the lovely [Bear Blog](https://github.com/HermanMartinus/bearblog/).
+- `src/lib/` — database (`db.ts`, `schema.ts`), auth (`auth.ts`), helpers.
+- `src/middleware.ts` — loads the session and guards `/admin/*`.
+- `src/pages/blog/` — diary index and individual entry pages (DB-backed).
+- `src/pages/admin/new.astro` — the protected New entry form.
+- `src/pages/api/` — `login`, `logout`, and `posts` (create) endpoints.
+- `src/pages/login.astro` — the login page.

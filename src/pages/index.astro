@@ -1,0 +1,29 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<h1>Technical Diary</h1>
+			<p>
+				A running log of what I work on day to day — the things I build, the
+				problems I run into, and whatever I learn along the way. Mostly notes to
+				my future self, shared in the open.
+			</p>
+			<p>
+				Head over to the <a href="/blog">diary</a> to read the latest entries, or
+				check the <a href="/about">about</a> page to see what this is.
+			</p>
+		</main>
+		<Footer />
+	</body>
+</html>

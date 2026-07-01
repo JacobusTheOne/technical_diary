@@ -1,16 +1,9 @@
 import type { APIRoute } from 'astro';
-import { getDb } from '../../lib/db';
-import { posts } from '../../lib/schema';
-import { uniqueSlug } from '../../lib/slug';
+import { createPost } from '../../lib/posts';
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	// Middleware guards /admin, but this endpoint lives under /api, so check here too.
 	if (!locals.user) return redirect('/login', 302);
-
-	const db = getDb();
-	if (!db) {
-		return new Response('Database is not configured.', { status: 503 });
-	}
 
 	const form = await request.formData();
 	const title = String(form.get('title') ?? '').trim();
@@ -27,8 +20,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		return redirect('/admin/new?error=date', 302);
 	}
 
-	const slug = await uniqueSlug(db, title);
-	await db.insert(posts).values({ slug, title, body, pubDate });
+	const post = await createPost({ title, body, pubDate });
 
-	return redirect(`/blog/${slug}`, 302);
+	return redirect(`/blog/${post.slug}`, 302);
 };

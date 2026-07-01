@@ -9,7 +9,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 export default defineConfig({
 	// TODO: replace with your Netlify URL once the site is connected (needed for correct RSS/sitemap links)
 	site: 'https://example.netlify.app',
-	// Server-rendered: the diary reads posts from the database at request time
+	// Server-rendered: the diary reads posts from Netlify Blobs at request time
 	// and the /admin routes need a live session.
 	output: 'server',
 	adapter: netlify(),

@@ -1,18 +1,12 @@
 ---
-import { desc } from 'drizzle-orm';
 import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
-import { getDb } from '../../lib/db';
-import { posts as postsTable } from '../../lib/schema';
+import { listPosts } from '../../lib/posts';
 
-const db = getDb();
-const posts = db
-	? await db.select().from(postsTable).orderBy(desc(postsTable.pubDate))
-	: [];
-const dbMissing = !db;
+const posts = await listPosts();
 const isAdmin = !!Astro.locals.user;
 ---
 
@@ -35,8 +29,7 @@ const isAdmin = !!Astro.locals.user;
 				}
 			</div>
 
-			{dbMissing && <p class="notice">The database isn't configured yet, so there are no entries to show.</p>}
-			{!dbMissing && posts.length === 0 && <p class="notice">No entries yet. Log in to write the first one.</p>}
+			{posts.length === 0 && <p class="notice">No entries yet. Log in to write the first one.</p>}
 
 			<ul>
 				{

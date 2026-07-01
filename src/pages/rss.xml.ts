@@ -1,15 +1,10 @@
 import rss from '@astrojs/rss';
 import type { APIContext } from 'astro';
-import { desc } from 'drizzle-orm';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
-import { getDb } from '../lib/db';
-import { posts as postsTable } from '../lib/schema';
+import { listPosts } from '../lib/posts';
 
 export async function GET(context: APIContext) {
-	const db = getDb();
-	const posts = db
-		? await db.select().from(postsTable).orderBy(desc(postsTable.pubDate))
-		: [];
+	const posts = await listPosts();
 
 	return rss({
 		title: SITE_TITLE,

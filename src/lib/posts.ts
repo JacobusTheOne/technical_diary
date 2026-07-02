@@ -16,9 +16,8 @@ export interface Post {
 interface StoredPost {
 	id: number;
 	slug: string;
-	// Tolerate entries that were briefly stored as { en, pt } objects.
-	title: string | { en?: string; pt?: string };
-	body: string | { en?: string; pt?: string };
+	title: string;
+	body: string;
 	pubDate: string;
 	createdAt: string;
 }
@@ -29,12 +28,6 @@ export interface NewPostInput {
 	pubDate: Date;
 }
 
-/** Flatten a stored field (string, or a legacy { en, pt } object) to a string. */
-function normalizeText(value: StoredPost['title']): string {
-	if (typeof value === 'string') return value;
-	return value?.en || value?.pt || '';
-}
-
 function getPostsStore() {
 	return getStore({ name: STORE_NAME, consistency: 'strong' });
 }
@@ -42,8 +35,6 @@ function getPostsStore() {
 function fromStored(post: StoredPost): Post {
 	return {
 		...post,
-		title: normalizeText(post.title),
-		body: normalizeText(post.body),
 		pubDate: new Date(post.pubDate),
 		createdAt: new Date(post.createdAt),
 	};

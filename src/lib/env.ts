@@ -1,7 +1,7 @@
 // Small helper to read runtime env vars.
 //
-// On Netlify, secrets (DB URL, admin credentials, session secret) are injected
-// into `process.env` at request time. During local `astro dev` they come from a
+// On Netlify, secrets (admin credentials, session secret) are injected into
+// `process.env` at request time. During local `astro dev` they come from a
 // `.env` file, which Astro loads into `import.meta.env`. Read both so the same
 // code works in either place.
 export function env(key: string): string | undefined {

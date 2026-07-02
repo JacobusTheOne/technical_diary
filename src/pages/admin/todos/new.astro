@@ -3,19 +3,17 @@ import BaseHead from '../../../components/BaseHead.astro';
 import Footer from '../../../components/Footer.astro';
 import Header from '../../../components/Header.astro';
 import TodoForm from '../../../components/TodoForm.astro';
-import { localeFor, t } from '../../../lib/i18n';
+import { strings } from '../../../lib/strings';
 import { TODO_TEMPLATE_JSON } from '../../../lib/todos';
 
 // Middleware already guarantees a logged-in user here.
-const lang = Astro.locals.lang;
-const strings = t(lang);
 const error = Astro.url.searchParams.get('error');
 const errorMessage =
 	error === 'json' ? strings.errInvalidJson : error === 'title' ? strings.errTodoTitle : null;
 ---
 
 <!doctype html>
-<html lang={localeFor(lang)}>
+<html lang="en">
 	<head>
 		<BaseHead title={strings.newTodoHeading} description="Add a new todo." />
 	</head>

@@ -1,11 +1,10 @@
 ---
 import { marked } from 'marked';
 import BlogPost from '../../layouts/BlogPost.astro';
-import { t } from '../../lib/i18n';
 import { findPostBySlug } from '../../lib/posts';
+import { strings } from '../../lib/strings';
 
 const { slug } = Astro.params;
-const strings = t(Astro.locals.lang);
 const isAdmin = !!Astro.locals.user;
 
 const row = slug ? await findPostBySlug(slug) : undefined;

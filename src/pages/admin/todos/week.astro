@@ -2,13 +2,12 @@
 import BaseHead from '../../../components/BaseHead.astro';
 import Footer from '../../../components/Footer.astro';
 import Header from '../../../components/Header.astro';
-import { localeFor, t } from '../../../lib/i18n';
+import { todayIsoDate } from '../../../lib/dates';
+import { strings } from '../../../lib/strings';
 import { listTodos } from '../../../lib/todos';
 
 // Middleware already guarantees a logged-in user here.
-const lang = Astro.locals.lang;
-const strings = t(lang);
-const locale = localeFor(lang);
+const locale = 'en';
 
 function isoDate(d: Date): string {
 	const y = d.getFullYear();
@@ -32,14 +31,20 @@ function mondayOf(d: Date): Date {
 	return addDays(x, -offset);
 }
 
+// "Today" in the admin's timezone; date math below happens on Dates built
+// from this string, so it stays consistent regardless of the server's zone.
+const todayIso = todayIsoDate();
+const today = new Date(`${todayIso}T00:00:00`);
+
 // Which week to show: ?week=YYYY-MM-DD anchors it; otherwise the current week.
+// The regex admits impossible dates like 2026-99-99, so also reject NaN.
 const weekParam = Astro.url.searchParams.get('week');
-const anchor =
+const requested =
 	weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)
 		? new Date(`${weekParam}T00:00:00`)
-		: new Date();
+		: null;
+const anchor = requested && !Number.isNaN(requested.valueOf()) ? requested : today;
 const monday = mondayOf(anchor);
-const todayIso = isoDate(new Date());
 
 const days = Array.from({ length: 7 }, (_, i) => {
 	const date = addDays(monday, i);
@@ -54,7 +59,7 @@ const days = Array.from({ length: 7 }, (_, i) => {
 
 const prevWeek = isoDate(addDays(monday, -7));
 const nextWeek = isoDate(addDays(monday, 7));
-const thisWeek = isoDate(mondayOf(new Date()));
+const thisWeek = isoDate(mondayOf(today));
 
 // Flatten every step across todos into draggable chips.
 const todos = await listTodos();
@@ -163,7 +168,7 @@ const hasAnySteps = chips.length > 0;
 					<div class="dropzone" data-date="">
 						<div class="groups">
 							{unscheduledGroups.map((group) => (
-								<details class="todo-group">
+								<details class="todo-group" data-todo-id={group.todoId}>
 									<summary class="todo-summary">
 										<h3>{group.todoTitle}</h3>
 										{group.todoGoal && (
@@ -202,7 +207,7 @@ const hasAnySteps = chips.length > 0;
 						<div class="dropzone" data-date={day.iso}>
 							<div class="groups">
 								{groupsByDay(day.iso).map((group) => (
-									<details class="todo-group">
+									<details class="todo-group" data-todo-id={group.todoId}>
 										<summary class="todo-summary">
 											<h3>{group.todoTitle}</h3>
 											{group.todoGoal && (
@@ -264,10 +269,11 @@ const hasAnySteps = chips.length > 0;
 						e.preventDefault();
 						zone.classList.remove('over');
 						if (!dragged) return;
+						const chip = dragged;
 
-						const todoId = dragged.dataset.todoId;
-						const stepIndex = dragged.dataset.stepIndex;
-						const subIndex = dragged.dataset.subIndex || '';
+						const todoId = chip.dataset.todoId;
+						const stepIndex = chip.dataset.stepIndex;
+						const subIndex = chip.dataset.subIndex || '';
 						const date = zone.dataset.date || '';
 
 						try {
@@ -276,12 +282,31 @@ const hasAnySteps = chips.length > 0;
 								headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 								body: new URLSearchParams({ _action: 'schedule-step', stepIndex, subIndex, date }),
 							});
-							if (!res.ok) throw new Error(String(res.status));
-							location.reload();
+							// A redirect means the session expired and the save didn't happen.
+							if (!res.ok || res.redirected) throw new Error(String(res.status));
 						} catch {
 							// Reload to resync if the save failed.
 							location.reload();
+							return;
 						}
+
+						// Move the chip into the target column in place — no reload, so
+						// the board keeps its scroll position and expanded groups.
+						const source = chip.closest('.todo-group');
+						const groups = zone.querySelector('.groups');
+						let target = [...groups.querySelectorAll('.todo-group')].find(
+							(g) => g.dataset.todoId === todoId,
+						);
+						if (!target) {
+							// First chip of this todo in the column: clone the group shell
+							// (title + goal) and start it with an empty chip list.
+							target = source.cloneNode(true);
+							target.querySelector('.chips').replaceChildren();
+							groups.appendChild(target);
+						}
+						target.querySelector('.chips').appendChild(chip);
+						target.open = true;
+						if (source !== target && !source.querySelector('.chip')) source.remove();
 					});
 				});
 			})();
@@ -400,6 +425,7 @@ const hasAnySteps = chips.length > 0;
 				column-gap: 0.45rem;
 				padding: 0.45rem 0.55rem;
 				cursor: pointer;
+				list-style: none;
 			}
 			.todo-summary::-webkit-details-marker {
 				display: none;
@@ -408,6 +434,11 @@ const hasAnySteps = chips.length > 0;
 				content: '>';
 				grid-column: 1;
 				grid-row: 1 / span 2;
+				/* Keep the box glyph-sized so the rotation pivots in place
+				   instead of swinging around the stretched row height. */
+				align-self: start;
+				font-size: 0.85rem;
+				line-height: 1.25;
 				font-weight: 700;
 				color: var(--accent);
 				transition: transform 0.15s ease;

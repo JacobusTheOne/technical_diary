@@ -4,17 +4,15 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
-import { localeFor, t } from '../../lib/i18n';
 import { listPosts } from '../../lib/posts';
+import { strings } from '../../lib/strings';
 
 const posts = await listPosts();
 const isAdmin = !!Astro.locals.user;
-const lang = Astro.locals.lang;
-const strings = t(lang);
 ---
 
 <!doctype html>
-<html lang={localeFor(lang)}>
+<html lang="en">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 	</head>

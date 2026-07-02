@@ -36,13 +36,6 @@ and the list shows a running **open estimate** total. Todos track **done/open**
 status (Mark done / Reopen), and **Edit** reopens a todo as JSON. Todos are stored
 in their own Netlify Blobs store, separate from diary entries.
 
-## Languages
-
-A **EN / PT-BR** button in the header switches the interface language; the choice
-is remembered in a `lang` cookie and applies site-wide. It translates the UI
-chrome (navigation, forms, buttons, dates) and the Home/About pages. Diary
-entries are written once in whatever language you choose and display as authored.
-
 ## Local development
 
 ```sh

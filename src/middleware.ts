@@ -1,14 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, verifySessionToken } from './lib/auth';
-import { LANG_COOKIE, parseLang } from './lib/i18n';
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	// Populate the current user (if any) for every request.
 	const token = context.cookies.get(SESSION_COOKIE)?.value;
 	context.locals.user = await verifySessionToken(token);
-
-	// Resolve the active display language from the `lang` cookie.
-	context.locals.lang = parseLang(context.cookies.get(LANG_COOKIE)?.value);
 
 	// Protect the admin area: everything under /admin requires a session.
 	const path = context.url.pathname;

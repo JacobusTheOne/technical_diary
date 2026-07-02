@@ -2,13 +2,10 @@
 import BaseHead from '../../../components/BaseHead.astro';
 import Footer from '../../../components/Footer.astro';
 import Header from '../../../components/Header.astro';
-import { localeFor, t } from '../../../lib/i18n';
+import { strings } from '../../../lib/strings';
 import { listTodos } from '../../../lib/todos';
 
 // Middleware already guarantees a logged-in user here.
-const lang = Astro.locals.lang;
-const strings = t(lang);
-
 const todos = await listTodos();
 const open = todos.filter((todo) => !todo.done);
 const completed = todos.filter((todo) => todo.done);
@@ -16,7 +13,7 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 ---
 
 <!doctype html>
-<html lang={localeFor(lang)}>
+<html lang="en">
 	<head>
 		<BaseHead title={strings.todosHeading} description="Personal todo list." />
 	</head>
@@ -47,7 +44,7 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 					<section>
 						<h2>{strings.openSection}</h2>
 						{open.map((todo) => (
-							<details class="card">
+							<details class="card" data-open-key={`todo-${todo.id}`}>
 								<summary class="card-summary">
 								<div class="card-head">
 									<h3>{todo.title}</h3>
@@ -79,8 +76,8 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 									</div>
 								)}
 								{todo.steps.length > 0 && (
-									<div class="block">
-										<span class="block-label">{strings.fieldSteps}</span>
+									<details class="block steps-block" data-open-key={`todo-${todo.id}-steps`}>
+										<summary class="block-label">{strings.fieldSteps}</summary>
 										<ul class="steps">
 											{todo.steps.map((step, i) => {
 												const subs = step.subtasks ?? [];
@@ -88,14 +85,14 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 												return (
 													<li>
 														{subs.length > 0 ? (
-															<>
-																<div class:list={['step-parent', { done: step.done }]}>
+															<details class="step-details" data-open-key={`todo-${todo.id}-step-${i}`}>
+																<summary class:list={['step-parent', { done: step.done }]}>
 																	<span class="box">{step.done ? '✓' : '▢'}</span>
 																	<span class="parent-text">{step.text}</span>
 																	<span class="progress">
 																		{doneCount}/{subs.length}
 																	</span>
-																</div>
+																</summary>
 																<ul class="subs">
 																	{subs.map((sub, j) => (
 																		<li>
@@ -110,7 +107,7 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 																		</li>
 																	))}
 																</ul>
-															</>
+															</details>
 														) : (
 															<form method="POST" action={`/api/todos/${todo.id}`}>
 																<input type="hidden" name="_action" value="toggle-step" />
@@ -124,7 +121,7 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 												);
 											})}
 										</ul>
-									</div>
+									</details>
 								)}
 								{todo.notes && (
 									<p class="notes">
@@ -176,6 +173,69 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 			}
 		</main>
 		<Footer />
+		<script is:inline>
+			// Toggle steps in place via fetch() instead of a form navigation, so
+			// checking one off doesn't reload the page and lose scroll position.
+			(() => {
+				document.addEventListener('submit', async (event) => {
+					const form = event.target;
+					const action = form.querySelector('input[name="_action"]');
+					if (action?.value !== 'toggle-step') return;
+					event.preventDefault();
+
+					const body = new URLSearchParams(new FormData(form));
+					body.set('ajax', '1');
+					try {
+						const res = await fetch(form.action, { method: 'POST', body });
+						if (!res.ok || res.redirected) throw new Error(String(res.status));
+					} catch {
+						// Save failed (e.g. session expired): reload to resync.
+						location.reload();
+						return;
+					}
+
+					// Mirror the server's state change on the step we toggled.
+					const btn = form.querySelector('.step-toggle');
+					const nowDone = btn.classList.toggle('done');
+					btn.querySelector('.box').textContent = nowDone ? '✓' : '▢';
+
+					// For a sub-task, roll completion up to its parent step.
+					const subs = form.closest('ul.subs');
+					if (subs) {
+						const parent = subs.closest('li').querySelector('.step-parent');
+						const boxes = subs.querySelectorAll('.step-toggle');
+						const doneCount = [...boxes].filter((b) => b.classList.contains('done')).length;
+						const allDone = doneCount === boxes.length;
+						parent.querySelector('.progress').textContent = `${doneCount}/${boxes.length}`;
+						parent.classList.toggle('done', allDone);
+						parent.querySelector('.box').textContent = allDone ? '✓' : '▢';
+					}
+				});
+			})();
+
+			// Mark done / Reopen / Edit still navigate, which would collapse every
+			// <details>. Remember which ones are open (per tab) and restore them.
+			(() => {
+				const KEY = 'todos-open';
+				const read = () => {
+					try {
+						return JSON.parse(sessionStorage.getItem(KEY)) ?? {};
+					} catch {
+						return {};
+					}
+				};
+				document.querySelectorAll('details[data-open-key]').forEach((el) => {
+					const key = el.dataset.openKey;
+					if (read()[key]) el.open = true;
+					el.addEventListener('toggle', () => {
+						const state = read();
+						if (el.open) state[key] = true;
+						else delete state[key];
+						sessionStorage.setItem(KEY, JSON.stringify(state));
+					});
+				});
+			})();
+		</script>
 		<style>
 			main {
 				width: 720px;
@@ -247,6 +307,7 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 				grid-template-columns: auto 1fr;
 				column-gap: 0.6rem;
 				cursor: pointer;
+				list-style: none;
 			}
 			.card-summary::-webkit-details-marker {
 				display: none;
@@ -255,6 +316,10 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 				content: '>';
 				grid-column: 1;
 				grid-row: 1 / span 2;
+				/* Keep the box glyph-sized so the rotation pivots in place
+				   instead of swinging around the stretched row height. */
+				align-self: start;
+				line-height: 1.5;
 				font-weight: 700;
 				color: var(--accent);
 				transition: transform 0.15s ease;
@@ -267,6 +332,16 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 			}
 			.card-summary:hover h3 {
 				color: var(--accent);
+			}
+			/* The title and goal toggle the card; badges are inert.
+			   Cards without a goal keep the whole summary clickable. */
+			.card-summary:has(.goal) {
+				pointer-events: none;
+			}
+			.card-summary:has(.goal) .goal,
+			.card-summary:has(.goal) h3 {
+				pointer-events: auto;
+				cursor: pointer;
 			}
 			.card-body {
 				padding-top: 0.2rem;
@@ -325,6 +400,27 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 				margin: 0.25rem 0 0;
 				padding-left: 1.25rem;
 			}
+			.steps-block > summary {
+				list-style: none;
+				cursor: pointer;
+			}
+			.steps-block > summary::-webkit-details-marker {
+				display: none;
+			}
+			.steps-block > summary::before {
+				content: '>';
+				display: inline-block;
+				margin-right: 0.4rem;
+				font-weight: 700;
+				color: var(--accent);
+				transition: transform 0.15s ease;
+			}
+			.steps-block[open] > summary::before {
+				transform: rotate(90deg);
+			}
+			.steps-block > summary:hover {
+				color: var(--accent);
+			}
 			.steps {
 				list-style: none;
 				padding-left: 0;
@@ -338,6 +434,25 @@ const openHours = open.reduce((sum, todo) => sum + (todo.timeEstimateHours ?? 0)
 				gap: 0.4rem;
 				padding: 0.15rem 0;
 				font-weight: 700;
+			}
+			.step-details > .step-parent {
+				cursor: pointer;
+				list-style: none;
+			}
+			.step-details > .step-parent::-webkit-details-marker {
+				display: none;
+			}
+			.step-details > .step-parent::before {
+				content: '>';
+				font-weight: 700;
+				color: var(--accent);
+				transition: transform 0.15s ease;
+			}
+			.step-details[open] > .step-parent::before {
+				transform: rotate(90deg);
+			}
+			.step-details > .step-parent:hover .parent-text {
+				color: var(--accent);
 			}
 			.step-parent .box {
 				color: var(--accent);

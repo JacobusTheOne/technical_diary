@@ -33,6 +33,8 @@ export const POST: APIRoute = async ({ request, params, locals, redirect }) => {
 		if (Number.isInteger(stepIndex)) {
 			await toggleTodoStep(id, stepIndex, hasSub ? subIndex : undefined);
 		}
+		// fetch()-based callers update the UI in place; no redirect needed.
+		if (form.get('ajax')) return new Response(null, { status: 204 });
 		return redirect('/admin/todos', 302);
 	}
 

@@ -1,5 +1,5 @@
 ---
-import { t } from '../lib/i18n';
+import { strings } from '../lib/strings';
 
 interface Props {
 	action: string;
@@ -9,7 +9,6 @@ interface Props {
 }
 
 const { action, json, isEdit = false } = Astro.props;
-const strings = t(Astro.locals.lang);
 ---
 
 <form method="POST" action={action} class="todo-form">

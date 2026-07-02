@@ -2,20 +2,18 @@
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
-import { localeFor, t } from '../lib/i18n';
+import { strings } from '../lib/strings';
 
 // Already logged in? Send them straight to the new-post form.
 if (Astro.locals.user) return Astro.redirect('/admin/new');
 
-const lang = Astro.locals.lang;
-const strings = t(lang);
 const params = Astro.url.searchParams;
 const redirect = params.get('redirect') ?? '/admin/new';
 const hasError = params.get('error') === '1';
 ---
 
 <!doctype html>
-<html lang={localeFor(lang)}>
+<html lang="en">
 	<head>
 		<BaseHead title={strings.login} description="Sign in to write a diary entry." />
 	</head>

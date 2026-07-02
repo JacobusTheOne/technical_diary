@@ -1,6 +1,7 @@
 ---
-import { t } from '../lib/i18n';
+import { todayIsoDate } from '../lib/dates';
 import type { Post } from '../lib/posts';
+import { strings } from '../lib/strings';
 
 interface Props {
 	action: string;
@@ -9,7 +10,6 @@ interface Props {
 }
 
 const { action, post } = Astro.props;
-const strings = t(Astro.locals.lang);
 
 // Format a Date as YYYY-MM-DD using local parts, matching how entries are saved.
 function toDateInput(date: Date): string {
@@ -19,7 +19,8 @@ function toDateInput(date: Date): string {
 	return `${y}-${m}-${d}`;
 }
 
-const dateValue = toDateInput(post?.pubDate ?? new Date());
+// New entries default to today in the admin's timezone, not the server's.
+const dateValue = post ? toDateInput(post.pubDate) : todayIsoDate();
 ---
 
 <form method="POST" action={action}>

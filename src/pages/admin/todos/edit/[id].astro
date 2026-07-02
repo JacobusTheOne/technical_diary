@@ -3,13 +3,10 @@ import BaseHead from '../../../../components/BaseHead.astro';
 import Footer from '../../../../components/Footer.astro';
 import Header from '../../../../components/Header.astro';
 import TodoForm from '../../../../components/TodoForm.astro';
-import { localeFor, t } from '../../../../lib/i18n';
+import { strings } from '../../../../lib/strings';
 import { findTodoById } from '../../../../lib/todos';
 
 // Middleware already guarantees a logged-in user here.
-const lang = Astro.locals.lang;
-const strings = t(lang);
-
 const id = Number(Astro.params.id);
 const todo = Number.isInteger(id) ? await findTodoById(id) : undefined;
 if (!todo) return Astro.redirect('/admin/todos', 302);
@@ -36,7 +33,7 @@ const errorMessage =
 ---
 
 <!doctype html>
-<html lang={localeFor(lang)}>
+<html lang="en">
 	<head>
 		<BaseHead title={strings.editTodoHeading} description="Edit a todo." />
 	</head>

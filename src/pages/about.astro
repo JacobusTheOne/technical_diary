@@ -1,54 +1,27 @@
 ---
 import AboutHeroImage from '../assets/blog-placeholder-about.jpg';
 import Layout from '../layouts/BlogPost.astro';
-
-const lang = Astro.locals.lang;
 ---
 
 <Layout
-	title={lang === 'pt' ? 'Sobre' : 'About'}
+	title="About"
 	description="What this diary is and who's writing it."
 	pubDate={new Date('July 01 2026')}
 	heroImage={AboutHeroImage}
 >
-	{
-		lang === 'pt' ? (
-			<>
-				<p>
-					Este é o meu diário técnico — um lugar onde anoto o que estou fazendo,
-					cerca de um post por dia. É em parte changelog, em parte caderno, em parte
-					pato de borracha.
-				</p>
+	<p>
+		This is my technical diary — a place where I write down what I'm working on,
+		roughly a post per day. It's part changelog, part notebook, part rubber duck.
+	</p>
 
-				<p>
-					Espere entradas curtas e informais: o que construí, o que quebrou, o que
-					descobri e links para coisas que vale a pena lembrar. Nada aqui é documentação
-					polida — é o meio bagunçado de realmente fazer o trabalho.
-				</p>
+	<p>
+		Expect short, informal entries: what I built, what broke, what I figured out,
+		and links to things worth remembering. Nothing here is polished documentation —
+		it's the messy middle of actually doing the work.
+	</p>
 
-				<p>
-					Se algo disto for útil para você, ótimo. Se não, ainda é útil para mim.
-					Obrigado por ler.
-				</p>
-			</>
-		) : (
-			<>
-				<p>
-					This is my technical diary — a place where I write down what I'm working on,
-					roughly a post per day. It's part changelog, part notebook, part rubber duck.
-				</p>
-
-				<p>
-					Expect short, informal entries: what I built, what broke, what I figured out,
-					and links to things worth remembering. Nothing here is polished documentation —
-					it's the messy middle of actually doing the work.
-				</p>
-
-				<p>
-					If any of it is useful to you, great. If not, it's still useful to me. Thanks
-					for reading.
-				</p>
-			</>
-		)
-	}
+	<p>
+		If any of it is useful to you, great. If not, it's still useful to me. Thanks
+		for reading.
+	</p>
 </Layout>

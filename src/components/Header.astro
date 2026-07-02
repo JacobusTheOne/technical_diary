@@ -1,9 +1,8 @@
 ---
 import { SITE_TITLE } from '../consts';
-import { t } from '../lib/i18n';
+import { strings } from '../lib/strings';
 import HeaderLink from './HeaderLink.astro';
 
-const strings = t(Astro.locals.lang);
 const isAdmin = !!Astro.locals.user;
 ---
 
